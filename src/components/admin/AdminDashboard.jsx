@@ -1982,7 +1982,7 @@ const AdminDashboard = () => {
                 variant="contained"
                 onClick={handleSaveTeamConfig}
               >
-                Save Configuration
+                Save Configurations
               </Button>
             </DialogActions>
           </Dialog>
