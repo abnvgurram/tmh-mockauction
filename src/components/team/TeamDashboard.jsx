@@ -136,8 +136,12 @@ const TeamDashboard = () => {
 
   // Calculate next bid amount (memoized to prevent flickering)
   const nextBidAmount = useMemo(() => {
-    if (!auctionState?.current_bid) return currentPlayer?.base_price || 0;
+    // If no current bid, return base price (first bid)
+    if (!auctionState?.current_bid || auctionState.current_bid === 0) {
+      return currentPlayer?.base_price || 0;
+    }
     
+    // Otherwise, calculate next bid with increment
     const currentBid = auctionState.current_bid;
     let increment = 0.05;
     
