@@ -83,6 +83,14 @@ const AdminDashboard = () => {
   // Player data - separated by type
   const [auctionPoolPlayers, setAuctionPoolPlayers] = useState([]);
   const [retainedPlayers, setRetainedPlayers] = useState([]);
+  // After retainedPlayers state, add:
+const [unsoldPlayers, setUnsoldPlayers] = useState([]);
+
+// Filters - Unsold Pool (add after retainedTeamFilter)
+const [unsoldSearchQuery, setUnsoldSearchQuery] = useState('');
+const [unsoldCategoryFilter, setUnsoldCategoryFilter] = useState('all');
+const [unsoldCountryFilter, setUnsoldCountryFilter] = useState('all');
+const [unsoldViewMode, setUnsoldViewMode] = useState('list');
   const [teams, setTeams] = useState([]);
   
   const [auctionRules, setAuctionRules] = useState({
@@ -191,40 +199,66 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fetch players (separated by type)
-  const fetchPlayers = async () => {
-    setLoading(true);
-    try {
-      // Fetch auction pool players
-      const { data: auctionData, error: auctionError } = await supabase
-        .from('players')
-        .select('*')
-        .eq('status', 'auction_pool')
-        .order('name', { ascending: true });
+const fetchPlayers = async () => {
+  setLoading(true);
+  try {
+    // Fetch auction pool players
+    const { data: auctionData, error: auctionError } = await supabase
+      .from('players')
+      .select('*')
+      .eq('status', 'auction_pool')
+      .order('name', { ascending: true });
 
-      if (auctionError) throw auctionError;
-      setAuctionPoolPlayers(auctionData || []);
+    if (auctionError) throw auctionError;
+    setAuctionPoolPlayers(auctionData || []);
 
-      // Fetch retained players
-      const { data: retainedData, error: retainedError } = await supabase
-        .from('players')
-        .select(`
-          *,
-          teams (team_name, team_code)
-        `)
-        .eq('is_retained', true)
-        .order('name', { ascending: true });
+    // Fetch unsold players
+    const { data: unsoldData, error: unsoldError } = await supabase
+      .from('players')
+      .select('*')
+      .in('status', ['unsold', 'discarded'])
+      .order('name', { ascending: true });
 
-      if (retainedError) throw retainedError;
-      setRetainedPlayers(retainedData || []);
+    if (unsoldError) throw unsoldError;
+    setUnsoldPlayers(unsoldData || []);
 
-    } catch (error) {
-      console.error('Error fetching players:', error);
-      setError('Failed to load players');
-    } finally {
-      setLoading(false);
+    // Fetch retained players (FIXED VERSION)
+    const { data: retainedData, error: retainedError } = await supabase
+      .from('players')
+      .select('*')
+      .eq('is_retained', true)
+      .order('name', { ascending: true });
+
+    if (retainedError) throw retainedError;
+
+    // Fetch team details separately and merge
+    if (retainedData && retainedData.length > 0) {
+      const { data: teamsData } = await supabase
+        .from('teams')
+        .select('id, team_name, team_code');
+      
+      const teamsMap = {};
+      if (teamsData) {
+        teamsData.forEach(team => {
+          teamsMap[team.id] = team;
+        });
+      }
+      
+      // Merge team data
+      retainedData.forEach(player => {
+        player.teams = teamsMap[player.team_id] || null;
+      });
     }
-  };
+
+    setRetainedPlayers(retainedData || []);
+
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    setError('Failed to load players');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch teams
   const fetchTeams = async () => {
